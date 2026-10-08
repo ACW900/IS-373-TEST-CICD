@@ -1,0 +1,170 @@
+name: CI/CD
+
+# qa branch   -> QA   (https://qa.acw33firstliveproj.online)
+# main branch -> Production (https://acw33firstliveproj.online)
+on:
+  push:
+    branches: [qa, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Test and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate site and project files
+        run: bash scripts/validate.sh
+
+      - name: Check shell script syntax
+        run: |
+          bash -n scripts/validate.sh
+          bash -n deploy/deploy.sh
+
+      - name: Validate Compose file
+        run: docker compose -f deploy/docker-compose.yml config -q
+
+      - name: Validate Caddyfile
+        run: |
+          docker run --rm -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile
+
+  build:
+    name: Build and push image
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      env: ${{ steps.meta.outputs.env }}
+      image_ref: ${{ steps.meta.outputs.image_ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Work out image name and target environment
+        id: meta
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          TAG_SHA="${GITHUB_SHA::7}"
+          if [ "$GITHUB_REF_NAME" = "main" ]; then TARGET=prod; else TARGET=qa; fi
+          echo "env=${TARGET}" >> "$GITHUB_OUTPUT"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TARGET}-${TAG_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_ref=${IMAGE}:${TARGET}-${TAG_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build image and smoke test it
+        env:
+          TARGET: ${{ steps.meta.outputs.env }}
+        run: |
+          docker build --build-arg GIT_SHA="$GITHUB_SHA" --build-arg BUILD_ENV="$TARGET" -t smoke:test .
+          docker run -d --name smoke -p 8080:80 smoke:test
+          page="$(curl -fsS --retry 10 --retry-delay 1 --retry-connrefused http://localhost:8080/)"
+          grep -qi "<title>" <<< "$page"
+          version="$(curl -fsS http://localhost:8080/version.json)"
+          echo "$version"
+          grep -q "$GITHUB_SHA" <<< "$version"
+          docker rm -f smoke
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image to GitHub Container Registry
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag }}
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.env }}-latest
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            BUILD_ENV=${{ steps.meta.outputs.env }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Write run summary
+        run: |
+          {
+            echo "### Image pushed"
+            echo "- Registry image: \`${{ steps.meta.outputs.image_ref }}\`"
+            echo "- Commit: \`$GITHUB_SHA\`"
+            echo "- Target: \`${{ steps.meta.outputs.env }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to ${{ needs.build.outputs.env }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.build.outputs.env == 'prod' && 'production' || 'qa' }}
+      url: ${{ needs.build.outputs.env == 'prod' && 'https://acw33firstliveproj.online' || 'https://qa.acw33firstliveproj.online' }}
+    env:
+      SSH_HOST: ${{ secrets.SERVER_HOST }}
+      SSH_USER: ${{ secrets.SERVER_USER }}
+      SSH_PORT: ${{ secrets.SERVER_PORT || '2200' }}
+      TARGET: ${{ needs.build.outputs.env }}
+      IMAGE_REF: ${{ needs.build.outputs.image_ref }}
+      SITE_URL: ${{ needs.build.outputs.env == 'prod' && 'https://acw33firstliveproj.online' || 'https://qa.acw33firstliveproj.online' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Copy deployment files to the server
+        run: |
+          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" \
+            deploy/docker-compose.yml deploy/Caddyfile deploy/deploy.sh \
+            "$SSH_USER@$SSH_HOST:apps/site/"
+
+      - name: Log the server in to the registry
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "docker login ghcr.io -u $GH_ACTOR --password-stdin"
+
+      - name: Deploy
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "bash apps/site/deploy.sh $TARGET $IMAGE_REF"
+
+      - name: Verify the deployed commit
+        run: |
+          curl -fsS --retry 20 --retry-delay 3 --retry-all-errors "$SITE_URL/version.json" > version.json
+          cat version.json
+          grep -q "$GITHUB_SHA" version.json
+          {
+            echo "### Deployed"
+            echo "- URL: $SITE_URL"
+            echo "- Image: \`$IMAGE_REF\`"
+            echo "- Commit: \`$GITHUB_SHA\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Log the server out of the registry
+        if: always()
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "docker logout ghcr.io" || true
+
+      - name: Remove the SSH key from the runner
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

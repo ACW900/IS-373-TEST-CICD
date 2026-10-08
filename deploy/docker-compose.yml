@@ -1,0 +1,39 @@
+# Runs on the server in ~/apps/site/
+# QA_IMAGE and PROD_IMAGE are written to .env by deploy.sh on each deployment.
+services:
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - web
+
+  site-prod:
+    image: ${PROD_IMAGE:-nginx:1.27-alpine}
+    container_name: site-prod
+    restart: unless-stopped
+    networks:
+      - web
+
+  site-qa:
+    image: ${QA_IMAGE:-nginx:1.27-alpine}
+    container_name: site-qa
+    restart: unless-stopped
+    networks:
+      - web
+
+networks:
+  web:
+    name: web
+
+volumes:
+  caddy_data:
+  caddy_config:

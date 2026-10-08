@@ -1,0 +1,13 @@
+acw33firstliveproj.online {
+    encode gzip
+    reverse_proxy site-prod:80
+}
+
+www.acw33firstliveproj.online {
+    redir https://acw33firstliveproj.online{uri} permanent
+}
+
+qa.acw33firstliveproj.online {
+    encode gzip
+    reverse_proxy site-qa:80
+}

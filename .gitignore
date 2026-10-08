@@ -1,0 +1,6 @@
+.env
+*.env
+*.pem
+id_*
+.DS_Store
+node_modules/

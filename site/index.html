@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IS 373 CI/CD Demo</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <p id="env-badge" class="badge">loading...</p>
+    <h1>IS 373 CI/CD Demo</h1>
+    <p>This page is built into a Docker image by GitHub Actions and deployed automatically.</p>
+    <p class="note">Change this text, push to the <code>qa</code> branch, and watch it appear on the QA site first.</p>
+  </main>
+  <script>
+    fetch('version.json', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (v) {
+        document.getElementById('env-badge').textContent =
+          v.env.toUpperCase() + ' \u00b7 ' + v.commit.slice(0, 7);
+      })
+      .catch(function () {
+        document.getElementById('env-badge').textContent = 'LOCAL';
+      });
+  </script>
+</body>
+</html>
