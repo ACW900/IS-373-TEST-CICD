@@ -63,7 +63,8 @@ jobs:
         env:
           TARGET: ${{ steps.meta.outputs.env }}
         run: |
-          docker build --build-arg GIT_SHA="$GITHUB_SHA" --build-arg BUILD_ENV="$TARGET" -t smoke:test .
+          docker build --build-arg GIT_SHA="$GITHUB_SHA" --build-arg BUILD_ENV="$TARGET" \
+            --build-arg RUN_NUMBER="$GITHUB_RUN_NUMBER" -t smoke:test .
           docker run -d --name smoke -p 8080:80 smoke:test
           # Docker accepts the connection before nginx is listening, which shows up as
           # "connection reset" (curl 56), so retry on any error, not just refused.
@@ -96,6 +97,7 @@ jobs:
           build-args: |
             GIT_SHA=${{ github.sha }}
             BUILD_ENV=${{ steps.meta.outputs.env }}
+            RUN_NUMBER=${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -106,6 +108,7 @@ jobs:
             echo "- Registry image: \`${{ steps.meta.outputs.image_ref }}\`"
             echo "- Commit: \`$GITHUB_SHA\`"
             echo "- Target: \`${{ steps.meta.outputs.env }}\`"
+            echo "- Test number: \`${{ github.run_number }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
   deploy:

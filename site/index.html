@@ -18,7 +18,7 @@
       .then(function (r) { return r.json(); })
       .then(function (v) {
         document.getElementById('env-badge').textContent =
-          v.env.toUpperCase() + ' \u00b7 ' + v.commit.slice(0, 7);
+          v.env.toUpperCase() + ' \u00b7 Test ' + v.run;
       })
       .catch(function () {
         document.getElementById('env-badge').textContent = 'LOCAL';
