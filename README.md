@@ -49,8 +49,6 @@ Open http://localhost:8080
 
 ## Test Evidence
 
-> Replace every TODO below before submitting.
-
 **Workflow runs and image**
 
 - QA workflow run: [Test 5 on `qa`](https://github.com/ACW900/IS-373-TEST-CICD/actions/runs/38770538365) (test, build, deploy to QA all green)
@@ -69,9 +67,12 @@ Open http://localhost:8080
 
   ![Production after promotion](evidence/prod-after.png)
 
-**SSH hardening (redacted)**
+**SSH hardening**
 
-- Key-based login as the non-root user: TODO (screenshot or terminal output)
+- Key-based login as the non-root user (`acw33`, port 2200, key passphrase prompt):
+
+  ![SSH key login as acw33](evidence/ssh-key-login.png)
+
 - Effective SSH settings showing root and password login disabled (`sudo sshd -T`):
 
   ```
@@ -82,8 +83,13 @@ Open http://localhost:8080
   passwordauthentication no
   kbdinteractiveauthentication no
   ```
-- Root login rejected: TODO
-- Password login rejected: TODO
+- Root login rejected (`Permission denied (publickey)`):
+
+  ![Root login rejected](evidence/ssh-root-rejected.png)
+
+- Password login rejected (`Permission denied (publickey)`):
+
+  ![Password login rejected](evidence/ssh-password-rejected.png)
 
 **Summary**
 
