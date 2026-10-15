@@ -37,7 +37,8 @@ wait_healthy() {
 echo "Deploying $IMAGE to $ENVIRONMENT"
 set_image "$IMAGE"
 docker compose pull "$SERVICE"
-docker compose up -d --remove-orphans
+# Only start Caddy and this environment, so a QA deploy never recreates production
+docker compose up -d caddy "$SERVICE"
 docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile >/dev/null 2>&1 \
   || docker compose restart caddy
 
