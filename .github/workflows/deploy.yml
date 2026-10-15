@@ -115,6 +115,11 @@ jobs:
     name: Deploy to ${{ needs.build.outputs.env }}
     needs: build
     runs-on: ubuntu-latest
+    # QA and production share one server and one compose project, so only one
+    # deploy may run at a time across both branches. Later deploys wait their turn.
+    concurrency:
+      group: deploy-server
+      cancel-in-progress: false
     environment:
       name: ${{ needs.build.outputs.env == 'prod' && 'production' || 'qa' }}
       url: ${{ needs.build.outputs.env == 'prod' && 'https://acw33firstliveproj.online' || 'https://qa.acw33firstliveproj.online' }}
