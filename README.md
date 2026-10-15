@@ -60,8 +60,14 @@ Open http://localhost:8080
 
 **The change moving through QA to production**
 
-- Screenshot of the change on QA: TODO
-- Screenshot of the same change on production after promotion: TODO
+- Screenshot of the change on QA (`QA · Test 5`), with production still on the old heading (`PROD · 8785c0f`):
+
+  ![QA after the push](evidence/qa-after.png)
+  ![Production before promotion](evidence/prod-before.png)
+
+- Screenshot of the same change on production after promotion (`PROD · Test 6`):
+
+  ![Production after promotion](evidence/prod-after.png)
 
 **SSH hardening (redacted)**
 
