@@ -65,9 +65,14 @@ jobs:
         run: |
           docker build --build-arg GIT_SHA="$GITHUB_SHA" --build-arg BUILD_ENV="$TARGET" -t smoke:test .
           docker run -d --name smoke -p 8080:80 smoke:test
-          page="$(curl -fsS --retry 10 --retry-delay 1 --retry-connrefused http://localhost:8080/)"
+          # Docker accepts the connection before nginx is listening, which shows up as
+          # "connection reset" (curl 56), so retry on any error, not just refused.
+          if ! page="$(curl -fsS --retry 20 --retry-delay 1 --retry-all-errors http://localhost:8080/)"; then
+            docker logs smoke
+            exit 1
+          fi
           grep -qi "<title>" <<< "$page"
-          version="$(curl -fsS http://localhost:8080/version.json)"
+          version="$(curl -fsS --retry 5 --retry-delay 1 --retry-all-errors http://localhost:8080/version.json)"
           echo "$version"
           grep -q "$GITHUB_SHA" <<< "$version"
           docker rm -f smoke
