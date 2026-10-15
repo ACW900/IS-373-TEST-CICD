@@ -53,10 +53,10 @@ Open http://localhost:8080
 
 **Workflow runs and image**
 
-- QA workflow run: TODO (link to the green run on the `qa` branch)
-- Production workflow run: TODO (link to the green run on `main`)
-- Image registry location: TODO (link from the repository's Packages section, `ghcr.io/acw900/is-373-test-cicd`)
-- Deployed commit / image tag: TODO (for example `prod-abc1234`, from the run summary)
+- QA workflow run: [Test 5 on `qa`](https://github.com/ACW900/IS-373-TEST-CICD/actions/runs/38770538365) (test, build, deploy to QA all green)
+- Production workflow run: [Test 6 on `main`](https://github.com/ACW900/IS-373-TEST-CICD/actions/runs/38771286314) (test, build, deploy to production all green)
+- Image registry location: [`ghcr.io/acw900/is-373-test-cicd`](https://github.com/ACW900/IS-373-TEST-CICD/pkgs/container/is-373-test-cicd)
+- Deployed commit / image tag: commit `53e41a6`, deployed as `qa-53e41a6` on QA and `prod-53e41a6` on production
 
 **The change moving through QA to production**
 
