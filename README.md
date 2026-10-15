@@ -66,7 +66,16 @@ Open http://localhost:8080
 **SSH hardening (redacted)**
 
 - Key-based login as the non-root user: TODO (screenshot or terminal output)
-- Effective SSH settings showing root and password login disabled (`sudo sshd -T`): TODO
+- Effective SSH settings showing root and password login disabled (`sudo sshd -T`):
+
+  ```
+  $ sudo sshd -T | grep -E '^(port|permitrootlogin|passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication) '
+  port 2200
+  permitrootlogin no
+  pubkeyauthentication yes
+  passwordauthentication no
+  kbdinteractiveauthentication no
+  ```
 - Root login rejected: TODO
 - Password login rejected: TODO
 
