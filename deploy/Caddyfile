@@ -11,3 +11,9 @@ qa.acw33firstliveproj.online {
     encode gzip
     reverse_proxy site-qa:80
 }
+
+# IS373 hosting STUDIO-001: calculator launched by the studio CLI (separate compose project)
+calc.acw33firstliveproj.online {
+    encode gzip
+    reverse_proxy is373-studio-calculator-calculator-1:8000
+}
